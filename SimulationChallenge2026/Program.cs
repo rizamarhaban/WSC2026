@@ -1,4 +1,7 @@
-﻿using SimulationChallenge2026;
+﻿using System.Text;
+using SimulationChallenge2026;
+
+Console.Title = "Winter Simulation Challenge 2026";
 
 var context = MaritimeDataInitializer.Create();
 
@@ -11,20 +14,23 @@ for (var day = updateIntervalDays; day <= totalDays; day += updateIntervalDays)
 {
     sim.Run(TimeSpan.FromDays(updateIntervalDays));
 
+    var sb = new StringBuilder();
+
+    sb.AppendLine($"Simulation Progress: Day {day:N0} / {totalDays:N0}");
+    sb.AppendLine($"Simulation Clock Time: {sim.ClockTime:yyyy-MM-dd HH:mm:ss}");
+
+    AppendShipmentAndPortStatistics(sb, sim);
+
+    AppendShipmentBeingTransportedStatistics(sb, sim);
+
+    AppendServiceRouteCapacityUtilizationStatistics(sb, sim);
+
+    AppendVesselStatistics(sb, sim);
+
+    sb.AppendLine();
+
     ClearConsoleScreen();
-
-    Console.WriteLine($"Simulation Progress: Day {day:N0} / {totalDays:N0}");
-    Console.WriteLine($"Simulation Clock Time: {sim.ClockTime:yyyy-MM-dd HH:mm:ss}");
-
-    PrintShipmentAndPortStatistics(sim);
-
-    PrintShipmentBeingTransportedStatistics(sim);
-
-    PrintServiceRouteCapacityUtilizationStatistics(sim);
-
-    PrintVesselStatistics(sim);
-
-    Console.WriteLine();
+    Console.Write(sb.ToString());
 }
 
 Console.WriteLine("Simulation completed.");
@@ -42,7 +48,7 @@ static void ClearConsoleScreen()
     Console.Out.Flush();
 }
 
-static void PrintShipmentAndPortStatistics(Model sim)
+static void AppendShipmentAndPortStatistics(StringBuilder sb, Model sim)
 {
     if (sim == null)
         throw new ArgumentNullException(nameof(sim));
@@ -51,44 +57,44 @@ static void PrintShipmentAndPortStatistics(Model sim)
     var transshipmentActivity = sim.Shipment_WaitingForLoadingAtTransshipmentPort;
     var vesselQueueActivity = sim.Vessel_QueuingForBerth;
 
-    Console.WriteLine();
-    Console.WriteLine("============================================================");
-    Console.WriteLine("Shipment Waiting for Loading Statistics");
-    Console.WriteLine("============================================================");
+    sb.AppendLine();
+    sb.AppendLine("============================================================");
+    sb.AppendLine("Shipment Waiting for Loading Statistics");
+    sb.AppendLine("============================================================");
 
     // Keep the original demand matrix.
-    PrintTeusByDemandMatrix(originActivity);
+    AppendTeusByDemandMatrix(sb, originActivity);
 
     // Print port-level statistics for shipment waiting TEUs and vessel queues.
-    PrintPortLevelStatistics(originActivity, transshipmentActivity, vesselQueueActivity);
+    AppendPortLevelStatistics(sb, originActivity, transshipmentActivity, vesselQueueActivity);
 
-    Console.WriteLine();
+    sb.AppendLine();
 }
 
-static void PrintShipmentBeingTransportedStatistics(Model sim)
+static void AppendShipmentBeingTransportedStatistics(StringBuilder sb, Model sim)
 {
     if (sim == null)
         throw new ArgumentNullException(nameof(sim));
 
     var activity = sim.Shipment_BeingTransported;
 
-    Console.WriteLine();
-    Console.WriteLine("============================================================");
-    Console.WriteLine("Shipment Being Transported Statistics");
-    Console.WriteLine("============================================================");
+    sb.AppendLine();
+    sb.AppendLine("============================================================");
+    sb.AppendLine("Shipment Being Transported Statistics");
+    sb.AppendLine("============================================================");
 
-    PrintAverageTeusInTransitionByDemandMatrix(activity);
+    AppendAverageTeusInTransitionByDemandMatrix(sb, activity);
 
-    PrintCompletedTeusByDemandMatrix(activity);
+    AppendCompletedTeusByDemandMatrix(sb, activity);
 
-    Console.WriteLine();
+    sb.AppendLine();
 }
 
-static void PrintTeusByDemandMatrix(Shipment_WaitingForLoadingAtOriginPort activity)
+static void AppendTeusByDemandMatrix(StringBuilder sb, Shipment_WaitingForLoadingAtOriginPort activity)
 {
-    Console.WriteLine();
-    Console.WriteLine("TEUs by Demand Matrix");
-    Console.WriteLine("------------------------------------------------------------");
+    sb.AppendLine();
+    sb.AppendLine("TEUs by Demand Matrix");
+    sb.AppendLine("------------------------------------------------------------");
 
     var origins = activity.HC_TeusByDemand.Keys
         .Select(demand => demand.OriginPort)
@@ -102,69 +108,37 @@ static void PrintTeusByDemandMatrix(Shipment_WaitingForLoadingAtOriginPort activ
         .OrderBy(port => port.Name)
         .ToList();
 
-    const int firstColumnWidth = 18;
-    const int cellWidth = 14;
-
-    Console.Write($"{"Origin \\ Destination",-firstColumnWidth}");
-
-    foreach (var destination in destinations)
+    string GetCellValue(Port origin, Port dest)
     {
-        Console.Write($"{destination.Name,cellWidth}");
+        var item = activity.HC_TeusByDemand
+            .FirstOrDefault(pair =>
+                pair.Key.OriginPort == origin &&
+                pair.Key.DestinationPort == dest);
+
+        return item.Key == null ? "-" : item.Value.AverageCount.ToString("N0");
     }
 
-    Console.WriteLine();
-
-    Console.Write($"{new string('-', firstColumnWidth),-firstColumnWidth}");
-
-    foreach (var _ in destinations)
-    {
-        Console.Write($"{new string('-', cellWidth),cellWidth}");
-    }
-
-    Console.WriteLine();
-
-    foreach (var origin in origins)
-    {
-        Console.Write($"{origin.Name,-firstColumnWidth}");
-
-        foreach (var destination in destinations)
-        {
-            var item = activity.HC_TeusByDemand
-                .FirstOrDefault(pair =>
-                    pair.Key.OriginPort == origin &&
-                    pair.Key.DestinationPort == destination);
-
-            if (item.Key == null)
-            {
-                Console.Write($"{"-",cellWidth}");
-            }
-            else
-            {
-                Console.Write($"{item.Value.AverageCount,cellWidth:N0}");
-            }
-        }
-
-        Console.WriteLine();
-    }
+    AppendMatrixTable(sb, origins, destinations, GetCellValue);
 }
 
-static void PrintPortLevelStatistics(
+static void AppendPortLevelStatistics(
+    StringBuilder sb,
     Shipment_WaitingForLoadingAtOriginPort originActivity,
     Shipment_WaitingForLoadingAtTransshipmentPort transshipmentActivity,
     Vessel_QueuingForBerth vesselQueueActivity)
 {
-    Console.WriteLine();
-    Console.WriteLine("Port-Level Shipment Waiting and Vessel Queue Statistics");
-    Console.WriteLine();
+    sb.AppendLine();
+    sb.AppendLine("Port-Level Shipment Waiting and Vessel Queue Statistics");
+    sb.AppendLine();
 
-    Console.WriteLine(
+    sb.AppendLine(
         $"{"Port",-25}" +
         $"{"Origin Waiting TEU",20}" +
         $"{"Transshipment Waiting TEU",28}" +
         $"{"Total Waiting TEU",20}" +
         $"{"Vessels Waiting",18}");
 
-    Console.WriteLine(new string('-', 111));
+    sb.AppendLine(new string('-', 111));
 
     var ports = originActivity.HC_TeusByOriginPort.Keys
         .Union(transshipmentActivity.HC_TeusByTransshipmentPort.Keys)
@@ -188,7 +162,7 @@ static void PrintPortLevelStatistics(
             vesselQueueActivity.HC_NumberOfVesselsByPort,
             port);
 
-        Console.WriteLine(
+        sb.AppendLine(
             $"{port.Name,-25}" +
             $"{originAverageTeu,20:N0}" +
             $"{transshipmentAverageTeu,28:N0}" +
@@ -196,7 +170,7 @@ static void PrintPortLevelStatistics(
             $"{averageVesselsWaiting,18:N2}");
     }
 
-    Console.WriteLine(new string('-', 111));
+    sb.AppendLine(new string('-', 111));
 
     double totalOriginAverageTeu = originActivity.HC_TeusByOriginPort
         .Values
@@ -210,43 +184,48 @@ static void PrintPortLevelStatistics(
         .Values
         .Sum(counter => counter.AverageCount);
 
-    Console.WriteLine(
+    sb.AppendLine(
         $"{"TOTAL",-25}" +
         $"{totalOriginAverageTeu,20:N0}" +
         $"{totalTransshipmentAverageTeu,28:N0}" +
         $"{totalOriginAverageTeu + totalTransshipmentAverageTeu,20:N0}" +
         $"{totalAverageVesselsWaiting,18:N2}");
 
-    Console.WriteLine();
+    sb.AppendLine();
 }
 
-static void PrintAverageTeusInTransitionByDemandMatrix(
+static void AppendAverageTeusInTransitionByDemandMatrix(
+    StringBuilder sb,
     Shipment_BeingTransported activity)
 {
-    Console.WriteLine();
-    Console.WriteLine("Average TEUs in Transition by Demand Matrix");
-    Console.WriteLine("------------------------------------------------------------");
+    sb.AppendLine();
+    sb.AppendLine("Average TEUs in Transition by Demand Matrix");
+    sb.AppendLine("------------------------------------------------------------");
 
-    PrintDemandMatrix(
+    AppendDemandMatrix(
+        sb,
         activity.HC_TeusInTransitionByDemand,
         counter => counter.AverageCount,
         "N0");
 }
 
-static void PrintCompletedTeusByDemandMatrix(
+static void AppendCompletedTeusByDemandMatrix(
+    StringBuilder sb,
     Shipment_BeingTransported activity)
 {
-    Console.WriteLine();
-    Console.WriteLine("Completed TEUs by Demand Matrix");
-    Console.WriteLine("------------------------------------------------------------");
+    sb.AppendLine();
+    sb.AppendLine("Completed TEUs by Demand Matrix");
+    sb.AppendLine("------------------------------------------------------------");
 
-    PrintDemandMatrix(
+    AppendDemandMatrix(
+        sb,
         activity.HC_TeusInTransitionByDemand,
         counter => counter.TotalDecrement,
         "N0");
 }
 
-static void PrintDemandMatrix(
+static void AppendDemandMatrix(
+    StringBuilder sb,
     Dictionary<Demand, O2DESNet.HourCounter> counters,
     Func<O2DESNet.HourCounter, double> valueSelector,
     string numberFormat)
@@ -263,62 +242,81 @@ static void PrintDemandMatrix(
         .OrderBy(port => port.Name)
         .ToList();
 
-    const int firstColumnWidth = 18;
-    const int cellWidth = 14;
-
-    Console.Write($"{"Origin \\ Destination",-firstColumnWidth}");
-
-    foreach (var destination in destinations)
+    string GetCellValue(Port origin, Port dest)
     {
-        Console.Write($"{destination.Name,cellWidth}");
+        var item = counters
+            .FirstOrDefault(pair =>
+                pair.Key.OriginPort == origin &&
+                pair.Key.DestinationPort == dest);
+
+        return item.Key == null ? "-" : valueSelector(item.Value).ToString(numberFormat);
     }
 
-    Console.WriteLine();
+    AppendMatrixTable(sb, origins, destinations, GetCellValue);
+}
 
-    Console.Write($"{new string('-', firstColumnWidth),-firstColumnWidth}");
+static void AppendMatrixTable(
+    StringBuilder sb,
+    List<Port> origins,
+    List<Port> destinations,
+    Func<Port, Port, string> getCellValue)
+{
+    const string firstHeader = "Origin \\ Destination";
 
-    foreach (var _ in destinations)
+    int firstColWidth = Math.Max(
+        firstHeader.Length,
+        origins.Count > 0 ? origins.Max(o => o.Name.Length) : 0) + 2;
+
+    int[] colWidths = destinations.Select(dest =>
     {
-        Console.Write($"{new string('-', cellWidth),cellWidth}");
+        int maxValueLen = origins.Count > 0
+            ? origins.Max(o => getCellValue(o, dest).Length)
+            : 0;
+
+        return Math.Max(dest.Name.Length + 2, maxValueLen + 2);
+    }).ToArray();
+
+    sb.Append(firstHeader.PadRight(firstColWidth));
+
+    for (int i = 0; i < destinations.Count; i++)
+    {
+        sb.Append(destinations[i].Name.PadLeft(colWidths[i]));
     }
 
-    Console.WriteLine();
+    sb.AppendLine();
+
+    sb.Append(new string('-', firstColWidth));
+
+    for (int i = 0; i < destinations.Count; i++)
+    {
+        sb.Append(new string('-', colWidths[i]));
+    }
+
+    sb.AppendLine();
 
     foreach (var origin in origins)
     {
-        Console.Write($"{origin.Name,-firstColumnWidth}");
+        sb.Append(origin.Name.PadRight(firstColWidth));
 
-        foreach (var destination in destinations)
+        for (int i = 0; i < destinations.Count; i++)
         {
-            var item = counters
-                .FirstOrDefault(pair =>
-                    pair.Key.OriginPort == origin &&
-                    pair.Key.DestinationPort == destination);
-
-            if (item.Key == null)
-            {
-                Console.Write($"{"-",cellWidth}");
-            }
-            else
-            {
-                double value = valueSelector(item.Value);
-                Console.Write($"{value.ToString(numberFormat),cellWidth}");
-            }
+            string value = getCellValue(origin, destinations[i]);
+            sb.Append(value.PadLeft(colWidths[i]));
         }
 
-        Console.WriteLine();
+        sb.AppendLine();
     }
 }
 
-static void PrintVesselStatistics(Model sim)
+static void AppendVesselStatistics(StringBuilder sb, Model sim)
 {
     if (sim == null)
         throw new ArgumentNullException(nameof(sim));
 
-    Console.WriteLine();
-    Console.WriteLine("============================================================");
-    Console.WriteLine("Vessel Statistics");
-    Console.WriteLine("============================================================");
+    sb.AppendLine();
+    sb.AppendLine("============================================================");
+    sb.AppendLine("Vessel Statistics");
+    sb.AppendLine("============================================================");
 
     double averageVesselsSailing =
         sim.Vessel_Sailing.S_HourCounter.AverageCount;
@@ -329,53 +327,53 @@ static void PrintVesselStatistics(Model sim)
     double averageVesselsBeingServed =
         sim.Vessel_BeingServed.D_HourCounter.AverageCount;
 
-    Console.WriteLine(
+    sb.AppendLine(
         $"{"Metric",-45}" +
         $"{"Average Count",18}");
 
-    Console.WriteLine(new string('-', 63));
+    sb.AppendLine(new string('-', 63));
 
-    Console.WriteLine(
+    sb.AppendLine(
         $"{"Average vessels sailing",-45}" +
         $"{averageVesselsSailing,18:N2}");
 
-    Console.WriteLine(
+    sb.AppendLine(
         $"{"Average vessels waiting for berth at port",-45}" +
         $"{averageVesselsWaitingAtPort,18:N2}");
 
-    Console.WriteLine(
+    sb.AppendLine(
         $"{"Average vessels being served at berth",-45}" +
         $"{averageVesselsBeingServed,18:N2}");
 
-    Console.WriteLine(new string('-', 63));
+    sb.AppendLine(new string('-', 63));
 
-    Console.WriteLine(
+    sb.AppendLine(
         $"{"TOTAL average active/port vessels",-45}" +
         $"{averageVesselsSailing + averageVesselsWaitingAtPort + averageVesselsBeingServed,18:N2}");
 
-    Console.WriteLine();
+    sb.AppendLine();
 }
 
-static void PrintServiceRouteCapacityUtilizationStatistics(Model sim)
+static void AppendServiceRouteCapacityUtilizationStatistics(StringBuilder sb, Model sim)
 {
     if (sim == null)
         throw new ArgumentNullException(nameof(sim));
 
     var vesselSailingActivity = sim.Vessel_Sailing;
 
-    Console.WriteLine();
-    Console.WriteLine("============================================================");
-    Console.WriteLine("Service Route Capacity and Utilization Statistics");
-    Console.WriteLine("============================================================");
+    sb.AppendLine();
+    sb.AppendLine("============================================================");
+    sb.AppendLine("Service Route Capacity and Utilization Statistics");
+    sb.AppendLine("============================================================");
 
-    Console.WriteLine(
+    sb.AppendLine(
         $"{"Route",-10}" +
         $"{"Name",-32}" +
         $"{"Avg Capacity TEU",20}" +
         $"{"Avg Carried TEU",20}" +
         $"{"Utilization",15}");
 
-    Console.WriteLine(new string('-', 97));
+    sb.AppendLine(new string('-', 97));
 
     var serviceRoutes = vesselSailingActivity.HC_TeuCapacityByServiceRoute.Keys
         .Union(vesselSailingActivity.HC_CarriedTeusByServiceRoute.Keys)
@@ -396,7 +394,7 @@ static void PrintServiceRouteCapacityUtilizationStatistics(Model sim)
             ? averageCarriedTeu / averageCapacityTeu
             : 0.0;
 
-        Console.WriteLine(
+        sb.AppendLine(
             $"{serviceRoute.Id,-10}" +
             $"{serviceRoute.Name,-32}" +
             $"{averageCapacityTeu,20:N0}" +
@@ -404,7 +402,7 @@ static void PrintServiceRouteCapacityUtilizationStatistics(Model sim)
             $"{utilization,15:P2}");
     }
 
-    Console.WriteLine(new string('-', 97));
+    sb.AppendLine(new string('-', 97));
 
     double totalAverageCapacityTeu = vesselSailingActivity
         .HC_TeuCapacityByServiceRoute
@@ -420,14 +418,14 @@ static void PrintServiceRouteCapacityUtilizationStatistics(Model sim)
         ? totalAverageCarriedTeu / totalAverageCapacityTeu
         : 0.0;
 
-    Console.WriteLine(
+    sb.AppendLine(
         $"{"TOTAL",-10}" +
         $"{"",-32}" +
         $"{totalAverageCapacityTeu,20:N0}" +
         $"{totalAverageCarriedTeu,20:N0}" +
         $"{totalUtilization,15:P2}");
 
-    Console.WriteLine();
+    sb.AppendLine();
 }
 
 static double GetAverageCount_byPort(
