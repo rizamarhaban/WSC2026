@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="O2DESNet" Version="3.7.1" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.7" />
   </ItemGroup>
 
 </Project>

@@ -1,7 +1,4 @@
 ﻿using SimulationChallenge2026;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
 var context = MaritimeDataInitializer.Create();
 
@@ -32,7 +29,6 @@ for (var day = updateIntervalDays; day <= totalDays; day += updateIntervalDays)
 
 Console.WriteLine("Simulation completed.");
 Console.WriteLine();
-
 
 #region Statistics Output
 
@@ -451,7 +447,5 @@ static double GetAverageCount_byServiceRoute(
         ? counter.AverageCount
         : 0.0;
 }
-
-
 
 #endregion
