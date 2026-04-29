@@ -1,17 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿namespace SimulationChallenge2026;
 
-namespace SimulationChallenge2026
+public class Berth
 {
-    public class Berth
-    {
-        public int Index { get; set; } 
+    public int Index { get; set; } 
 
-        public Port Port { get; set; } = null!;
-                
-        public Vessel? OccupyingVessel { get; set; }
+    public Port Port { get; set; } = null!;
+            
+    public Vessel? OccupyingVessel { get; set; }
 
-        public override string ToString() => $"{Port.Name}-Berth-{Index}";
-    }
+    public override string ToString() => $"{Port.Name}-Berth-{Index}";
 }

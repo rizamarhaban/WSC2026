@@ -1,25 +1,19 @@
-﻿using O2DESNet;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿namespace SimulationChallenge2026;
 
-namespace SimulationChallenge2026
+public class Berth_Generator : Generator<Berth>
 {
-    public class Berth_Generator : Generator<Berth>
+    public MaritimeDataContext MaritimeDataContext { get; }
+
+    public Berth_Generator(
+        MaritimeDataContext maritimeDataContext,
+        int seed = 0) : base(id: nameof(Berth_Generator), seed: seed)
     {
-        public MaritimeDataContext MaritimeDataContext { get; }
+        MaritimeDataContext = maritimeDataContext
+            ?? throw new ArgumentNullException(nameof(maritimeDataContext));
 
-        public Berth_Generator(
-            MaritimeDataContext maritimeDataContext,
-            int seed = 0) : base(id: nameof(Berth_Generator), seed: seed)
+        foreach (var berth in MaritimeDataContext.Ports.SelectMany(p => p.Berths))
         {
-            MaritimeDataContext = maritimeDataContext
-                ?? throw new ArgumentNullException(nameof(maritimeDataContext));
-
-            foreach (var berth in MaritimeDataContext.Ports.SelectMany(p => p.Berths))
-            {
-                Schedule(() => Arrive(berth), TimeSpan.Zero);
-            }
+            Schedule(() => Arrive(berth), TimeSpan.Zero);
         }
     }
 }
