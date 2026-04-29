@@ -36,6 +36,11 @@ for (var day = updateIntervalDays; day <= totalDays; day += updateIntervalDays)
 Console.WriteLine("Simulation completed.");
 Console.WriteLine();
 
+var pdfPath = Path.Combine(AppContext.BaseDirectory, "WSC2026 - Simulation Output.pdf");
+PdfReportGenerator.Generate(sim, pdfPath);
+Console.WriteLine($"PDF report saved to: {pdfPath}");
+Console.WriteLine();
+
 #region Statistics Output
 
 static void ClearConsoleScreen()
