@@ -294,16 +294,20 @@ static void AppendMatrixTable(
 
     sb.AppendLine();
 
-    foreach (var origin in origins)
+    for (int row = 0; row < origins.Count; row++)
     {
-        sb.Append(origin.Name.PadRight(firstColWidth));
+        // Alternate rows: even = white, odd = yellow.
+        sb.Append(row % 2 == 0 ? "\u001b[97m" : "\u001b[93m");
+
+        sb.Append(origins[row].Name.PadRight(firstColWidth));
 
         for (int i = 0; i < destinations.Count; i++)
         {
-            string value = getCellValue(origin, destinations[i]);
+            string value = getCellValue(origins[row], destinations[i]);
             sb.Append(value.PadLeft(colWidths[i]));
         }
 
+        sb.Append("\u001b[0m");
         sb.AppendLine();
     }
 }
