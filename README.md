@@ -36,3 +36,4 @@ SimulationChallenge2026/
 │   └── Activity and generator classes
 │
 └── SimulationChallenge2026.csproj
+```
